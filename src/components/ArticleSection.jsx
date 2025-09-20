@@ -1,27 +1,89 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect } from "react";
+import axios from "axios";
 import { Search } from "lucide-react";
 import BlogCard from "./BlogCard";
-import blogPosts from "../data/blogPosts";
-
 import {
   Select,
   SelectTrigger,
   SelectValue,
   SelectContent,
   SelectItem,
-} from "./ui/select"; // 👈 relative path
+} from "./ui/select";
 
+const API_URL = "https://blog-post-project-api.vercel.app/posts";
 const CATEGORIES = ["Highlight", "Cat", "Inspiration", "General"];
+const LIMIT = 6;
 
 export default function ArticleSection() {
-  // ค่าเริ่มต้นต้องเป็น Highlight
   const [category, setCategory] = useState("Highlight");
+  const [posts, setPosts] = useState([]);
+  const [page, setPage] = useState(1);          // หน้า ณ ปัจจุบัน
+  const [hasMore, setHasMore] = useState(true); // มีหน้าถัดไปอีกไหม
+  const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState("");
 
-  // กรองโพสต์ (Highlight = ทั้งหมด)
-  const filteredPosts = useMemo(() => {
-    if (category === "Highlight") return blogPosts.slice(0, 6);
-    return blogPosts.filter((p) => p.category === category).slice(0, 6);
-  }, [category]);
+  // ISO -> "11 September 2024"
+  const formatDate = (iso) =>
+    new Date(iso).toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    });
+
+  // ดึงข้อมูลเมื่อ page หรือ category เปลี่ยน
+  useEffect(() => {
+    const fetchPosts = async () => {
+      try {
+        // page === 1 ถือเป็นการโหลดรอบแรกของหมวดนั้น ๆ
+        const firstLoad = page === 1;
+        firstLoad ? setLoading(true) : setLoadingMore(true);
+        setError("");
+
+        const params =
+          category === "Highlight"
+            ? { page, limit: LIMIT }
+            : { page, limit: LIMIT, category };
+
+        const res = await axios.get(API_URL, { params });
+
+        const newPosts = (res.data?.posts ?? []).map((p) => ({
+          ...p,
+          date: formatDate(p.date),
+        }));
+
+        setPosts((prev) => (firstLoad ? newPosts : [...prev, ...newPosts]));
+
+        // เช็กว่าเป็นหน้าสุดท้ายแล้วหรือยัง
+        const { currentPage, totalPages } = res.data ?? {};
+        setHasMore(currentPage < totalPages);
+      } catch (e) {
+        console.error(e);
+        setError("Failed to load posts.");
+      } finally {
+        setLoading(false);
+        setLoadingMore(false);
+      }
+    };
+
+    fetchPosts();
+  }, [page, category]);
+
+  // รีเซ็ตเมื่อเปลี่ยน category
+  const handleChangeCategory = (name) => {
+    if (name === category) return;
+    setCategory(name);
+    setPage(1);
+    setPosts([]);
+    setHasMore(true);
+    setError("");
+  };
+
+  // กดโหลดเพิ่ม → เพิ่ม page
+  const handleLoadMore = () => {
+    if (loadingMore || !hasMore) return;
+    setPage((p) => p + 1);
+  };
 
   return (
     <section className="mt-12 md:mt-16">
@@ -33,7 +95,7 @@ export default function ArticleSection() {
       <div className="mt-5 hidden md:block">
         <div className="mx-6 rounded-2xl border border-stone-200 bg-stone-100/70 p-4">
           <div className="flex items-center justify-between gap-6">
-            {/* ปุ่ม Filter */}
+            {/* Filters */}
             <ul className="flex flex-wrap items-center gap-3 md:gap-6">
               {CATEGORIES.map((name) => {
                 const isActive = category === name;
@@ -41,7 +103,7 @@ export default function ArticleSection() {
                   <li key={name}>
                     <button
                       type="button"
-                      onClick={() => setCategory(name)}
+                      onClick={() => handleChangeCategory(name)}
                       disabled={isActive}
                       className={[
                         "rounded-xl px-4 py-2 text-[15px] font-medium transition-colors",
@@ -58,7 +120,7 @@ export default function ArticleSection() {
               })}
             </ul>
 
-            {/* Search (UI เท่านั้น) */}
+            {/* Search (UI only) */}
             <div className="relative w-full max-w-sm">
               <input
                 type="text"
@@ -74,7 +136,7 @@ export default function ArticleSection() {
       {/* Mobile Toolbar */}
       <div className="mt-5 md:hidden">
         <div className="mx-4 space-y-5 rounded-2xl border border-stone-200 bg-stone-100/70 p-4">
-          {/* Search */}
+          {/* Search (UI only) */}
           <div className="relative">
             <input
               type="text"
@@ -84,10 +146,10 @@ export default function ArticleSection() {
             <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-500" />
           </div>
 
-          {/* Select ของ shadcn/ui */}
+          {/* Category Select */}
           <div className="space-y-2">
             <label className="block text-stone-700">Category</label>
-            <Select value={category} onValueChange={(v) => setCategory(v)}>
+            <Select value={category} onValueChange={handleChangeCategory}>
               <SelectTrigger className="w-full rounded-xl border border-stone-300 bg-white">
                 <SelectValue placeholder="Select a category" />
               </SelectTrigger>
@@ -103,20 +165,40 @@ export default function ArticleSection() {
         </div>
       </div>
 
-      {/* Grid แสดงบทความ */}
-      <div className="mx-4 mt-8 grid grid-cols-1 gap-x-6 gap-y-10 md:mx-6 md:grid-cols-2">
-        {filteredPosts.map((p) => (
-          <BlogCard
-            key={p.id}
-            image={p.image}
-            category={p.category}
-            title={p.title}
-            description={p.description}
-            author={p.author}
-            date={p.date}
-          />
-        ))}
+      {/* Posts Grid */}
+      <div className="mx-4 mt-8 grid min-h-[400px] grid-cols-1 gap-x-6 gap-y-10 md:mx-6 md:grid-cols-2">
+        {loading && posts.length === 0 && (
+          <p className="col-span-full text-center text-stone-500">Loading...</p>
+        )}
+        {error && !loading && posts.length === 0 && (
+          <p className="col-span-full text-center text-red-500">{error}</p>
+        )}
+        {!loading &&
+          posts.map((p) => (
+            <BlogCard
+              key={p.id}
+              image={p.image}
+              category={p.category}
+              title={p.title}
+              description={p.description}
+              author={p.author}
+              date={p.date}
+            />
+          ))}
       </div>
+
+      {/* View more */}
+      {hasMore && (
+        <div className="mt-8 text-center">
+          <button
+            onClick={handleLoadMore}
+            disabled={loadingMore}
+            className="rounded-full border border-stone-300 px-6 py-3 font-medium hover:bg-stone-50 disabled:opacity-50"
+          >
+            {loadingMore ? "Loading..." : "View more"}
+          </button>
+        </div>
+      )}
     </section>
   );
 }
