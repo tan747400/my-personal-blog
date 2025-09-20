@@ -14,16 +14,24 @@ const API_URL = "https://blog-post-project-api.vercel.app/posts";
 const CATEGORIES = ["Highlight", "Cat", "Inspiration", "General"];
 const LIMIT = 6;
 
+/* ---------- Spinner กลม ๆ ---------- */
+function LoadingSpinner({ label = "Loading..." }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-8">
+      <div className="h-8 w-8 animate-spin rounded-full border-4 border-stone-300 border-t-stone-900" />
+      <p className="mt-2 text-stone-700">{label}</p>
+    </div>
+  );
+}
+
 export default function ArticleSection() {
   const [category, setCategory] = useState("Highlight");
   const [posts, setPosts] = useState([]);
-  const [page, setPage] = useState(1);          // หน้า ณ ปัจจุบัน
-  const [hasMore, setHasMore] = useState(true); // มีหน้าถัดไปอีกไหม
-  const [loading, setLoading] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoading, setIsLoading] = useState(false); // ใช้ตัวเดียวคุมทั้งแรกเข้า/โหลดเพิ่ม
   const [error, setError] = useState("");
 
-  // ISO -> "11 September 2024"
   const formatDate = (iso) =>
     new Date(iso).toLocaleDateString("en-GB", {
       day: "2-digit",
@@ -31,45 +39,35 @@ export default function ArticleSection() {
       year: "numeric",
     });
 
-  // ดึงข้อมูลเมื่อ page หรือ category เปลี่ยน
-  useEffect(() => {
-    const fetchPosts = async () => {
-      try {
-        // page === 1 ถือเป็นการโหลดรอบแรกของหมวดนั้น ๆ
-        const firstLoad = page === 1;
-        firstLoad ? setLoading(true) : setLoadingMore(true);
-        setError("");
+  // ดึงข้อมูลตาม page + category
+  const fetchPosts = async (reset = false) => {
+    setIsLoading(true);
+    try {
+      const params =
+        category === "Highlight"
+          ? { page, limit: LIMIT }
+          : { page, limit: LIMIT, category };
 
-        const params =
-          category === "Highlight"
-            ? { page, limit: LIMIT }
-            : { page, limit: LIMIT, category };
+      const res = await axios.get(API_URL, { params });
+      const data = (res.data?.posts ?? []).map((p) => ({
+        ...p,
+        date: formatDate(p.date),
+      }));
 
-        const res = await axios.get(API_URL, { params });
+      setPosts((prev) => (reset ? data : [...prev, ...data]));
 
-        const newPosts = (res.data?.posts ?? []).map((p) => ({
-          ...p,
-          date: formatDate(p.date),
-        }));
+      const { currentPage, totalPages } = res.data ?? {};
+      setHasMore(currentPage < totalPages);
+      setError("");
+    } catch (e) {
+      console.error(e);
+      setError("Failed to load posts.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-        setPosts((prev) => (firstLoad ? newPosts : [...prev, ...newPosts]));
-
-        // เช็กว่าเป็นหน้าสุดท้ายแล้วหรือยัง
-        const { currentPage, totalPages } = res.data ?? {};
-        setHasMore(currentPage < totalPages);
-      } catch (e) {
-        console.error(e);
-        setError("Failed to load posts.");
-      } finally {
-        setLoading(false);
-        setLoadingMore(false);
-      }
-    };
-
-    fetchPosts();
-  }, [page, category]);
-
-  // รีเซ็ตเมื่อเปลี่ยน category
+  // เปลี่ยนหมวด: รีเซ็ตหน้า+ลิสต์ แล้วโหลดใหม่
   const handleChangeCategory = (name) => {
     if (name === category) return;
     setCategory(name);
@@ -79,10 +77,20 @@ export default function ArticleSection() {
     setError("");
   };
 
-  // กดโหลดเพิ่ม → เพิ่ม page
+  // โหลดหน้าแรกเมื่อหมวดเปลี่ยน
+  useEffect(() => {
+    fetchPosts(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [category]);
+
+  // โหลดเพิ่มเมื่อ page เพิ่ม (ยกเว้นตอนรีเซ็ต)
+  useEffect(() => {
+    if (page > 1) fetchPosts(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page]);
+
   const handleLoadMore = () => {
-    if (loadingMore || !hasMore) return;
-    setPage((p) => p + 1);
+    if (!isLoading && hasMore) setPage((p) => p + 1);
   };
 
   return (
@@ -91,11 +99,10 @@ export default function ArticleSection() {
         Latest articles
       </h2>
 
-      {/* Desktop Toolbar */}
+      {/* ===== Desktop Toolbar ===== */}
       <div className="mt-5 hidden md:block">
         <div className="mx-6 rounded-2xl border border-stone-200 bg-stone-100/70 p-4">
           <div className="flex items-center justify-between gap-6">
-            {/* Filters */}
             <ul className="flex flex-wrap items-center gap-3 md:gap-6">
               {CATEGORIES.map((name) => {
                 const isActive = category === name;
@@ -120,7 +127,7 @@ export default function ArticleSection() {
               })}
             </ul>
 
-            {/* Search (UI only) */}
+            {/* search (UI อย่างเดียว) */}
             <div className="relative w-full max-w-sm">
               <input
                 type="text"
@@ -133,10 +140,9 @@ export default function ArticleSection() {
         </div>
       </div>
 
-      {/* Mobile Toolbar */}
+      {/* ===== Mobile Toolbar ===== */}
       <div className="mt-5 md:hidden">
         <div className="mx-4 space-y-5 rounded-2xl border border-stone-200 bg-stone-100/70 p-4">
-          {/* Search (UI only) */}
           <div className="relative">
             <input
               type="text"
@@ -146,7 +152,6 @@ export default function ArticleSection() {
             <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-500" />
           </div>
 
-          {/* Category Select */}
           <div className="space-y-2">
             <label className="block text-stone-700">Category</label>
             <Select value={category} onValueChange={handleChangeCategory}>
@@ -165,15 +170,15 @@ export default function ArticleSection() {
         </div>
       </div>
 
-      {/* Posts Grid */}
+      {/* ===== Grid ===== */}
       <div className="mx-4 mt-8 grid min-h-[400px] grid-cols-1 gap-x-6 gap-y-10 md:mx-6 md:grid-cols-2">
-        {loading && posts.length === 0 && (
-          <p className="col-span-full text-center text-stone-500">Loading...</p>
+        {isLoading && posts.length === 0 && (
+          <div className="col-span-full">
+            <LoadingSpinner />
+          </div>
         )}
-        {error && !loading && posts.length === 0 && (
-          <p className="col-span-full text-center text-red-500">{error}</p>
-        )}
-        {!loading &&
+
+        {!isLoading &&
           posts.map((p) => (
             <BlogCard
               key={p.id}
@@ -185,17 +190,32 @@ export default function ArticleSection() {
               date={p.date}
             />
           ))}
+
+        {!isLoading && posts.length === 0 && (
+          <p className="col-span-full text-center text-stone-600">No posts found.</p>
+        )}
+
+        {error && !isLoading && (
+          <p className="col-span-full text-center text-red-500">{error}</p>
+        )}
       </div>
 
-      {/* View more */}
+      {/* ===== View more ===== */}
       {hasMore && (
         <div className="mt-8 text-center">
           <button
             onClick={handleLoadMore}
-            disabled={loadingMore}
-            className="rounded-full border border-stone-300 px-6 py-3 font-medium hover:bg-stone-50 disabled:opacity-50"
+            disabled={isLoading}
+            className="mx-auto flex items-center justify-center gap-2 rounded-full border border-stone-400 px-6 py-3 text-sm font-medium hover:bg-stone-100 disabled:opacity-50"
           >
-            {loadingMore ? "Loading..." : "View more"}
+            {isLoading ? (
+              <>
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-stone-300 border-t-stone-900" />
+                Loading...
+              </>
+            ) : (
+              "View more"
+            )}
           </button>
         </div>
       )}
