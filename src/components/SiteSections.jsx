@@ -1,4 +1,14 @@
-import { Linkedin, Github, Globe, Mail, Menu } from "lucide-react";
+import {
+  Linkedin,
+  Github,
+  Globe,
+  Mail,
+  Menu,
+  Bell,          
+  ChevronDown,   
+  User,          
+  Key,           
+} from "lucide-react";
 
 // shadcn/ui dropdown menu
 import {
@@ -12,6 +22,9 @@ import {
 
 /* ========== NavBar ========== */
 export function NavBar() {
+  
+  const isLoggedIn = false; 
+
   return (
     <nav aria-label="Primary" className="w-full border-b border-stone-200 bg-white">
       <div className="flex w-full items-center justify-between px-6 py-4">
@@ -20,17 +33,53 @@ export function NavBar() {
           Thomson P<span className="text-green-500">•</span>
         </a>
 
-        {/* ปุ่ม Desktop */}
-        <div className="hidden items-center gap-3 md:flex">
-          <button className="rounded-full border border-stone-300 px-5 py-1.5 text-xl font-medium text-stone-700 hover:bg-stone-50">
-            Log in
-          </button>
-          <button className="rounded-full bg-stone-900 px-5 py-1.5 text-xl font-semibold text-white hover:bg-stone-800">
-            Sign up
-          </button>
-        </div>
+        {/* ===== Desktop actions ===== */}
+        {isLoggedIn ? (
+          <div className="hidden md:flex items-center gap-3">
 
-        {/* Dropdown เฉพาะ Mobile */}
+
+            <DropdownMenu>
+              <DropdownMenuTrigger className="inline-flex items-center gap-2 rounded-full border border-stone-300 px-4 py-2">
+                <img
+                  src="https://res.cloudinary.com/dcbpjtd1r/image/upload/v1728449784/my-blog-post/xgfy0xnvyemkklcqodkg.jpg"
+                  alt="avatar"
+                  className="h-6 w-6 rounded-full object-cover"
+                />
+                <span className="text-sm font-medium">Moodeng ja</span>
+                <ChevronDown className="h-4 w-4 opacity-70" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="mt-2 rounded-xl">
+                <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <a href="/profile" className="flex items-center gap-2">
+                    <User className="h-4 w-4" /> Profile
+                  </a>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <a href="/reset-password" className="flex items-center gap-2">
+                    <Key className="h-4 w-4" /> Reset password
+                  </a>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <a href="/logout" className="w-full">Log out</a>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        ) : (
+          <div className="hidden md:flex items-center gap-3">
+            <button className="rounded-full border border-stone-300 px-5 py-1.5 text-xl font-medium text-stone-700 hover:bg-stone-50">
+              Log in
+            </button>
+            <button className="rounded-full bg-stone-900 px-5 py-1.5 text-xl font-semibold text-white hover:bg-stone-800">
+              Sign up
+            </button>
+          </div>
+        )}
+
+        {/* ===== Mobile menu (Dropdown) ===== */}
         <div className="md:hidden">
           <DropdownMenu>
             <DropdownMenuTrigger
@@ -40,22 +89,55 @@ export function NavBar() {
               <Menu className="h-5 w-5" />
             </DropdownMenuTrigger>
 
-            <DropdownMenuContent align="end" className="mt-2 rounded-xl">
+            <DropdownMenuContent align="end" className="mt-2 rounded-xl min-w-[200px]">
               <DropdownMenuLabel>Menu</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <a href="/login" className="w-full">Log in</a>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <a href="/signup" className="w-full">Sign up</a>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <a href="/about" className="w-full">About</a>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <a href="/contact" className="w-full">Contact</a>
-              </DropdownMenuItem>
+
+              {/* ถ้า login แล้ว แสดงโปรไฟล์  */}
+              {isLoggedIn ? (
+                <>
+                  <div className="flex items-center gap-3 px-2 py-2">
+                    <img
+                      src="https://res.cloudinary.com/dcbpjtd1r/image/upload/v1728449784/my-blog-post/xgfy0xnvyemkklcqodkg.jpg"
+                      alt="avatar"
+                      className="h-8 w-8 rounded-full object-cover"
+                    />
+                    <span className="text-base font-medium text-foreground">Moodeng ja</span>
+
+                  </div>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <a href="/profile" className="flex items-center gap-2">
+                      <User className="h-4 w-4" /> Profile
+                    </a>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <a href="/reset-password" className="flex items-center gap-2">
+                      <Key className="h-4 w-4" /> Reset password
+                    </a>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <a href="/logout" className="w-full">Log out</a>
+                  </DropdownMenuItem>
+                </>
+              ) : (
+                <>
+                  <DropdownMenuItem asChild>
+                    <a href="/login" className="w-full">Log in</a>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <a href="/signup" className="w-full">Sign up</a>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <a href="/about" className="w-full">About</a>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <a href="/contact" className="w-full">Contact</a>
+                  </DropdownMenuItem>
+                </>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -126,16 +208,16 @@ export function Footer() {
       <div className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-center">
         <div className="flex items-center gap-5">
           <span className="text-stone-900 text-xl font-bold">Get in touch</span>
-          <a href="https://linkedin.com" className="inline-flex">
+          <a href="https://linkedin.com" className="inline-flex" aria-label="LinkedIn">
             <Linkedin className="h-5 w-5" />
           </a>
-          <a href="https://github.com" className="inline-flex">
+          <a href="https://github.com" className="inline-flex" aria-label="GitHub">
             <Github className="h-5 w-5" />
           </a>
-          <a href="/" className="inline-flex">
+          <a href="/" className="inline-flex" aria-label="Website">
             <Globe className="h-5 w-5" />
           </a>
-          <a href="mailto:example@mail.com" className="inline-flex">
+          <a href="mailto:example@mail.com" className="inline-flex" aria-label="Email">
             <Mail className="h-5 w-5" />
           </a>
         </div>
