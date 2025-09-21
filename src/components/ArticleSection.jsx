@@ -10,28 +10,17 @@ import {
   SelectItem,
 } from "./ui/select";
 
-const API_URL = "https://blog-post-project-api.vercel.app/posts";
 const CATEGORIES = ["Highlight", "Cat", "Inspiration", "General"];
-const LIMIT = 6;
-
-/* ---------- Spinner กลม ๆ ---------- */
-function LoadingSpinner({ label = "Loading..." }) {
-  return (
-    <div className="flex flex-col items-center justify-center py-8">
-      <div className="h-8 w-8 animate-spin rounded-full border-4 border-stone-300 border-t-stone-900" />
-      <p className="mt-2 text-stone-700">{label}</p>
-    </div>
-  );
-}
+const API_URL = "https://blog-post-project-api.vercel.app/posts";
 
 export default function ArticleSection() {
   const [category, setCategory] = useState("Highlight");
   const [posts, setPosts] = useState([]);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
-  const [isLoading, setIsLoading] = useState(false); // ใช้ตัวเดียวคุมทั้งแรกเข้า/โหลดเพิ่ม
-  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
+  // แปลงวันที่ ISO → 11 September 2024
   const formatDate = (iso) =>
     new Date(iso).toLocaleDateString("en-GB", {
       day: "2-digit",
@@ -39,59 +28,52 @@ export default function ArticleSection() {
       year: "numeric",
     });
 
-  // ดึงข้อมูลตาม page + category
+  // โหลดโพสต์
   const fetchPosts = async (reset = false) => {
     setIsLoading(true);
     try {
       const params =
         category === "Highlight"
-          ? { page, limit: LIMIT }
-          : { page, limit: LIMIT, category };
+          ? { page, limit: 6 }
+          : { page, limit: 6, category };
 
       const res = await axios.get(API_URL, { params });
+
       const data = (res.data?.posts ?? []).map((p) => ({
         ...p,
         date: formatDate(p.date),
       }));
 
-      setPosts((prev) => (reset ? data : [...prev, ...data]));
+      if (reset) {
+        setPosts(data);
+      } else {
+        setPosts((prev) => [...prev, ...data]);
+      }
 
-      const { currentPage, totalPages } = res.data ?? {};
-      setHasMore(currentPage < totalPages);
-      setError("");
-    } catch (e) {
-      console.error(e);
-      setError("Failed to load posts.");
+      if (res.data.currentPage >= res.data.totalPages) {
+        setHasMore(false);
+      } else {
+        setHasMore(true);
+      }
+    } catch (err) {
+      console.error("Error fetching posts:", err);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // เปลี่ยนหมวด: รีเซ็ตหน้า+ลิสต์ แล้วโหลดใหม่
-  const handleChangeCategory = (name) => {
-    if (name === category) return;
-    setCategory(name);
-    setPage(1);
-    setPosts([]);
-    setHasMore(true);
-    setError("");
-  };
-
-  // โหลดหน้าแรกเมื่อหมวดเปลี่ยน
+  // โหลดใหม่เมื่อ category เปลี่ยน
   useEffect(() => {
+    setPage(1);
     fetchPosts(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [category]);
 
-  // โหลดเพิ่มเมื่อ page เพิ่ม (ยกเว้นตอนรีเซ็ต)
+  // โหลดเพิ่มเมื่อ page เปลี่ยน
   useEffect(() => {
-    if (page > 1) fetchPosts(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (page > 1) fetchPosts();
   }, [page]);
 
-  const handleLoadMore = () => {
-    if (!isLoading && hasMore) setPage((p) => p + 1);
-  };
+  const handleLoadMore = () => setPage((prev) => prev + 1);
 
   return (
     <section className="mt-12 md:mt-16">
@@ -103,6 +85,7 @@ export default function ArticleSection() {
       <div className="mt-5 hidden md:block">
         <div className="mx-6 rounded-2xl border border-stone-200 bg-stone-100/70 p-4">
           <div className="flex items-center justify-between gap-6">
+            {/* Filter */}
             <ul className="flex flex-wrap items-center gap-3 md:gap-6">
               {CATEGORIES.map((name) => {
                 const isActive = category === name;
@@ -110,7 +93,7 @@ export default function ArticleSection() {
                   <li key={name}>
                     <button
                       type="button"
-                      onClick={() => handleChangeCategory(name)}
+                      onClick={() => setCategory(name)}
                       disabled={isActive}
                       className={[
                         "rounded-xl px-4 py-2 text-[15px] font-medium transition-colors",
@@ -127,7 +110,7 @@ export default function ArticleSection() {
               })}
             </ul>
 
-            {/* search (UI อย่างเดียว) */}
+            {/* Search (UI อย่างเดียว) */}
             <div className="relative w-full max-w-sm">
               <input
                 type="text"
@@ -143,6 +126,7 @@ export default function ArticleSection() {
       {/* ===== Mobile Toolbar ===== */}
       <div className="mt-5 md:hidden">
         <div className="mx-4 space-y-5 rounded-2xl border border-stone-200 bg-stone-100/70 p-4">
+          {/* Search */}
           <div className="relative">
             <input
               type="text"
@@ -152,9 +136,10 @@ export default function ArticleSection() {
             <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-500" />
           </div>
 
+          {/* Select Category */}
           <div className="space-y-2">
             <label className="block text-stone-700">Category</label>
-            <Select value={category} onValueChange={handleChangeCategory}>
+            <Select value={category} onValueChange={(v) => setCategory(v)}>
               <SelectTrigger className="w-full rounded-xl border border-stone-300 bg-white">
                 <SelectValue placeholder="Select a category" />
               </SelectTrigger>
@@ -170,18 +155,16 @@ export default function ArticleSection() {
         </div>
       </div>
 
-      {/* ===== Grid ===== */}
-      <div className="mx-4 mt-8 grid min-h-[400px] grid-cols-1 gap-x-6 gap-y-10 md:mx-6 md:grid-cols-2">
+      {/* ===== Grid of Blog Cards ===== */}
+      <div className="mx-4 mt-8 grid grid-cols-1 gap-x-6 gap-y-10 md:mx-6 md:grid-cols-2">
         {isLoading && posts.length === 0 && (
-          <div className="col-span-full">
-            <LoadingSpinner />
-          </div>
+          <p className="col-span-full text-center text-stone-500">Loading...</p>
         )}
-
         {!isLoading &&
           posts.map((p) => (
             <BlogCard
               key={p.id}
+              id={p.id}           // ✅ ส่ง id เข้าไปด้วย
               image={p.image}
               category={p.category}
               title={p.title}
@@ -190,32 +173,17 @@ export default function ArticleSection() {
               date={p.date}
             />
           ))}
-
-        {!isLoading && posts.length === 0 && (
-          <p className="col-span-full text-center text-stone-600">No posts found.</p>
-        )}
-
-        {error && !isLoading && (
-          <p className="col-span-full text-center text-red-500">{error}</p>
-        )}
       </div>
 
-      {/* ===== View more ===== */}
+      {/* ===== View More ===== */}
       {hasMore && (
-        <div className="mt-8 text-center">
+        <div className="text-center mt-8">
           <button
             onClick={handleLoadMore}
             disabled={isLoading}
-            className="mx-auto flex items-center justify-center gap-2 rounded-full border border-stone-400 px-6 py-3 text-sm font-medium hover:bg-stone-100 disabled:opacity-50"
+            className="hover:text-muted-foreground font-medium underline"
           >
-            {isLoading ? (
-              <>
-                <span className="h-4 w-4 animate-spin rounded-full border-2 border-stone-300 border-t-stone-900" />
-                Loading...
-              </>
-            ) : (
-              "View more"
-            )}
+            {isLoading ? "Loading..." : "View more"}
           </button>
         </div>
       )}

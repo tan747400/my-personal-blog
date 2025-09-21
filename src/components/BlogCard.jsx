@@ -1,5 +1,7 @@
-// src/components/BlogCard.jsx
+import { Link } from "react-router-dom";
+
 export default function BlogCard({
+  id,
   image,
   category,
   title,
@@ -9,19 +11,14 @@ export default function BlogCard({
 }) {
   return (
     <article className="flex flex-col gap-4">
-      {/* ป้องกันการเด้งขึ้นบนสุด */}
-      <a
-        href="#"
-        onClick={(e) => e.preventDefault()}
-        className="relative h-[212px] sm:h-[260px] md:h-[320px]"
-      >
+      <Link to={`/post/${id}`} className="relative h-[212px] sm:h-[260px] md:h-[320px]">
         <img
           className="h-full w-full rounded-md object-cover"
           src={image}
           alt={title}
           loading="lazy"
         />
-      </a>
+      </Link>
 
       <div className="flex flex-col">
         <div className="flex">
@@ -30,14 +27,11 @@ export default function BlogCard({
           </span>
         </div>
 
-        <a
-          href="#"
-          onClick={(e) => e.preventDefault()}
-        >
+        <Link to={`/post/${id}`}>
           <h3 className="mb-2 line-clamp-2 text-start text-xl font-bold hover:underline">
             {title}
           </h3>
-        </a>
+        </Link>
 
         <p className="mb-4 flex-grow line-clamp-3 text-sm text-muted-foreground">
           {description}
