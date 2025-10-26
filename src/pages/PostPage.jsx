@@ -1,7 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import ReactMarkdown from "react-markdown";
-import { Copy, Facebook, Linkedin, Twitter, Smile, Trash2, X } from "lucide-react";
+import {
+  Copy,
+  Facebook,
+  Linkedin,
+  Twitter,
+  Smile,
+  Trash2,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 import { createPortal } from "react-dom";
 
@@ -9,11 +16,15 @@ import supabase from "@/lib/db";
 import { useAuth } from "@/contexts/authentication";
 import AvatarCircle from "@/components/AvatarCircle";
 
-/* =============== StickyCard: เลื่อนขึ้นลงได้ และรีเซ็ตเมื่อถึงฐาน =============== */
+/* ================= StickyCard ================= */
 function StickyCard({ offset = 120, trackRef, children }) {
   const wrapRef = useRef(null);
   const cardRef = useRef(null);
-  const [style, setStyle] = useState({ position: "relative", top: 0, width: "auto" });
+  const [style, setStyle] = useState({
+    position: "relative",
+    top: 0,
+    width: "auto",
+  });
 
   useEffect(() => {
     const onUpdate = () => {
@@ -22,10 +33,14 @@ function StickyCard({ offset = 120, trackRef, children }) {
       if (!wrap || !card) return;
 
       const leftEl = trackRef?.current || null;
-      const leftH = leftEl ? (leftEl.scrollHeight || leftEl.offsetHeight || 0) : 0;
+      const leftH = leftEl
+        ? leftEl.scrollHeight || leftEl.offsetHeight || 0
+        : 0;
       const cardH = card.offsetHeight;
       const minH = Math.max(leftH, cardH);
-      if (wrap.style.minHeight !== `${minH}px`) wrap.style.minHeight = `${minH}px`;
+      if (wrap.style.minHeight !== `${minH}px`) {
+        wrap.style.minHeight = `${minH}px`;
+      }
 
       const rect = wrap.getBoundingClientRect();
       const scrollTop = window.scrollY || window.pageYOffset;
@@ -38,12 +53,22 @@ function StickyCard({ offset = 120, trackRef, children }) {
         setStyle({ position: "relative", top: 0, width: "auto" });
         return;
       }
+
       if (scrollTop > wrapTop - offset && scrollTop < maxFixedTop) {
-        setStyle({ position: "fixed", top: `${offset}px`, width: `${rect.width}px` });
+        setStyle({
+          position: "fixed",
+          top: `${offset}px`,
+          width: `${rect.width}px`,
+        });
         return;
       }
+
       const bottomY = minH - cardH;
-      setStyle({ position: "absolute", top: `${bottomY}px`, width: "100%" });
+      setStyle({
+        position: "absolute",
+        top: `${bottomY}px`,
+        width: "100%",
+      });
     };
 
     const ro = new ResizeObserver(onUpdate);
@@ -65,22 +90,26 @@ function StickyCard({ offset = 120, trackRef, children }) {
 
   return (
     <div ref={wrapRef} className="relative">
-      <div ref={cardRef} style={style}>{children}</div>
+      <div ref={cardRef} style={style}>
+        {children}
+      </div>
     </div>
   );
 }
 
-/* ===================== Helpers ===================== */
+/* ================= Helpers ================= */
 function toDateFromSupabase(v) {
   if (!v) return null;
   if (v instanceof Date) return v;
   const s = String(v);
   const hasTZ = /[zZ]|[+\-]\d{2}:\d{2}$/.test(s);
-  if (!hasTZ && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?$/.test(s)) return new Date(s + "Z");
+  if (!hasTZ && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?$/.test(s)) {
+    return new Date(s + "Z");
+  }
   return new Date(s);
 }
 
-// ใช้กับวันที่ของโพสต์ (รูปแบบ เช่น 23 October 2025)
+// ex. 23 October 2025
 function fmtBangkokDate(src) {
   const d = toDateFromSupabase(src);
   if (!d) return "";
@@ -94,11 +123,15 @@ function fmtBangkokDate(src) {
   } catch {
     const utcMs = d.getTime() + d.getTimezoneOffset() * 60000;
     const bkk = new Date(utcMs + 7 * 3600000);
-    return bkk.toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" });
+    return bkk.toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    });
   }
 }
 
-// ใช้กับเวลาคอมเมนต์ (รูปแบบ เช่น Oct 21, 2025, 02:13 PM)
+// ex. Oct 21, 2025, 02:13 PM
 function fmtBangkokDateTime(src) {
   const d = toDateFromSupabase(src);
   if (!d) return "";
@@ -110,7 +143,7 @@ function fmtBangkokDateTime(src) {
       day: "2-digit",
       hour: "2-digit",
       minute: "2-digit",
-      hour12: true, // AM/PM
+      hour12: true,
     }).format(d);
   } catch {
     const utcMs = d.getTime() + d.getTimezoneOffset() * 60000;
@@ -126,12 +159,135 @@ function fmtBangkokDateTime(src) {
   }
 }
 
-/* ===================== Simple modal ===================== */
+/* =========================================================
+   NORMALIZER
+   - ปรับ CRLF -> LF
+   - บังคับให้ "##หัวข้อ" กลายเป็น "## หัวข้อ" (กันเคสไม่มีช่องว่าง)
+   ========================================================= */
+function normalizeAdminContent(raw = "") {
+  if (!raw) return "";
+
+  let out = raw.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+
+  // ใส่ช่องว่างหลัง #... ถ้าไม่มี
+  // เช่น "##หัวข้อ" -> "## หัวข้อ"
+  out = out.replace(/^(#{1,6})([^\s#])/gm, (_, hashes, rest) => {
+    return `${hashes} ${rest}`;
+  });
+
+  return out;
+}
+
+/* =========================================================
+   ManualContentRenderer
+   - ทำ heading เอง (#, ##, ###)
+   - รองรับเคส ## "หัวข้อ", ## 🔥 หัวข้อ
+   - bullet ด้วย "-" หรือ "*" ต้นบรรทัด
+   - บรรทัดว่าง => ช่องไฟ
+   - paragraph ปกติ
+   ========================================================= */
+function ManualContentRenderer({ text }) {
+  if (!text) return null;
+
+  const prepared = normalizeAdminContent(text);
+  const rawLines = prepared.split("\n");
+
+  return (
+    <div>
+      {rawLines.map((origLine, idx) => {
+        // 1) แปลง NBSP (ช่องว่างแบบคีย์บอร์ดมือถือชอบใส่) เป็น space ปกติ
+        // 2) lineHeadTrimmed = ตัด space/tab ด้านหน้าสุดออก
+        const lineNoNbsp = origLine.replace(/\u00A0/g, " ");
+        const lineHeadTrimmed = lineNoNbsp.replace(/^[ \t]+/, "");
+        const lineFullyTrimmed = lineHeadTrimmed.trim();
+
+        // ========== กรณีบรรทัดว่าง ==========
+        if (lineFullyTrimmed === "") {
+          return <div key={idx} className="mb-3" />;
+        }
+
+        // ========== หัวข้อ H1/H2/H3 ==========
+        // regex นี้ยืดหยุ่น: อนุญาต ##🔥 , ##"..." , ##   "..."
+        const headingMatch = lineHeadTrimmed.match(/^(#{1,3})\s*(.+)$/);
+        if (headingMatch) {
+          const hashes = headingMatch[1]; // "#", "##", "###"
+          const content = headingMatch[2].trim();
+
+          if (content !== "") {
+            if (hashes.length === 1) {
+              // H1
+              return (
+                <h1
+                  key={idx}
+                  className="mt-6 mb-2 text-[24px] font-extrabold text-stone-900 leading-snug tracking-tight"
+                >
+                  {content}
+                </h1>
+              );
+            }
+            if (hashes.length === 2) {
+              // H2
+              return (
+                <h2
+                  key={idx}
+                  className="mt-6 mb-2 text-[20px] font-bold text-stone-900 leading-snug tracking-tight"
+                >
+                  {content}
+                </h2>
+              );
+            }
+            if (hashes.length === 3) {
+              // H3
+              return (
+                <h3
+                  key={idx}
+                  className="mt-6 mb-2 text-[18px] font-semibold text-stone-900 leading-snug tracking-tight"
+                >
+                  {content}
+                </h3>
+              );
+            }
+          }
+        }
+
+        // ========== bullet list ==========
+        // รองรับ "- เนื้อหา" หรือ "* เนื้อหา" (ช่องว่างหลัง - จะมีหรือไม่มีก็โอเค)
+        const bulletMatch = lineHeadTrimmed.match(/^[-*]\s*(.+)$/);
+        if (bulletMatch) {
+          const bulletText = bulletMatch[1] || "";
+          return (
+            <div key={idx} className="mb-2 flex items-start gap-2">
+              <div className="mt-[7px] h-[5px] w-[5px] flex-none rounded-full bg-stone-800" />
+              <p className="whitespace-pre-wrap text-[15px] leading-relaxed text-stone-800">
+                {bulletText}
+              </p>
+            </div>
+          );
+        }
+
+        // ========== paragraph ปกติ ==========
+        return (
+          <p
+            key={idx}
+            className="mb-3 whitespace-pre-wrap text-[15px] leading-relaxed text-stone-800"
+          >
+            {origLine}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ================= Modal ================= */
 function SimpleModal({ open, onClose, children }) {
   if (!open) return null;
   return createPortal(
     <div className="fixed inset-0 z-[100]">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={onClose} />
+      <div
+        className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
+        onClick={onClose}
+      />
       <div className="absolute left-1/2 top-1/2 w-[92vw] max-w-md -translate-x-1/2 -translate-y-1/2">
         <div className="relative rounded-2xl bg-white p-8 text-center shadow-2xl">
           <button
@@ -149,10 +305,11 @@ function SimpleModal({ open, onClose, children }) {
   );
 }
 
-/* ===================== Page ===================== */
+/* ================= Page ================= */
 export default function PostPage() {
   const { postId } = useParams();
   const pid = Number(postId);
+
   const { state } = useAuth();
   const user = state.user;
   const navigate = useNavigate();
@@ -167,23 +324,30 @@ export default function PostPage() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
 
-  // หมวด & ผู้เขียนจริง
+  // category + author
   const [category, setCategory] = useState(null);
   const [author, setAuthor] = useState(null);
 
-  // ref ของคอลัมน์ซ้ายให้ StickyCard อิงความสูง
+  // sticky ref
   const leftColRef = useRef(null);
 
-  /* ---- share / copy ---- */
-  const currentUrl = useMemo(() => (typeof window !== "undefined" ? window.location.href : ""), []);
+  // share url
+  const currentUrl = useMemo(
+    () => (typeof window !== "undefined" ? window.location.href : ""),
+    []
+  );
+
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(currentUrl);
-      toast.success("Copied!", { description: "Link copied to clipboard." });
+      toast.success("Copied!", {
+        description: "Link copied to clipboard.",
+      });
     } catch {
       toast.error("Failed to copy link");
     }
   };
+
   const openShare = (where) => {
     const u = encodeURIComponent(currentUrl);
     const map = {
@@ -195,14 +359,15 @@ export default function PostPage() {
     if (url) window.open(url, "_blank", "noopener,noreferrer");
   };
 
-  /* ---- load post + category + author + likes + comments ---- */
+  /* ---- load post data ---- */
   useEffect(() => {
     if (!Number.isFinite(pid)) {
       setErr("Invalid post id");
       setLoading(false);
       return;
     }
-    let mounted = true;
+
+    let active = true;
 
     async function fetchCommentsWithUsers(postId) {
       const { data: rows } = await supabase
@@ -217,19 +382,22 @@ export default function PostPage() {
         .from("users")
         .select("id, username, name, profile_pic")
         .in("id", userIds);
+
       const map = new Map((users || []).map((u) => [u.id, u]));
       return rows.map((r) => ({ ...r, user: map.get(r.user_id) || null }));
     }
 
-    async function load() {
+    (async () => {
       try {
         setLoading(true);
         setErr("");
 
-        // 1) โหลดโพสต์ (ต้องมี user_id อ้างถึงผู้เขียน)
+        // post main
         const { data: p, error: pErr } = await supabase
           .from("posts")
-          .select("id,image,title,description,content,date,category_id,likes_count,status_id,user_id")
+          .select(
+            "id,image,title,description,content,date,category_id,likes_count,status_id,user_id"
+          )
           .eq("id", pid)
           .maybeSingle();
         if (pErr) throw pErr;
@@ -238,37 +406,37 @@ export default function PostPage() {
           return;
         }
 
-        // 2) หมวดหมู่
+        // category
         if (p.category_id != null) {
           const { data: cat } = await supabase
             .from("categories")
             .select("id,name")
             .eq("id", p.category_id)
             .maybeSingle();
-          if (mounted) setCategory(cat || null);
+          if (active) setCategory(cat || null);
         } else {
-          if (mounted) setCategory(null);
+          if (active) setCategory(null);
         }
 
-        // 3) ผู้เขียนจริง (จาก posts.user_id)
+        // author
         if (p.user_id) {
           const { data: au } = await supabase
             .from("users")
             .select("id,username,name,profile_pic")
             .eq("id", p.user_id)
             .maybeSingle();
-          if (mounted) setAuthor(au || null);
+          if (active) setAuthor(au || null);
         } else {
-          if (mounted) setAuthor(null);
+          if (active) setAuthor(null);
         }
 
-        // 4) นับไลก์
+        // like count
         const { count: likeCount } = await supabase
           .from("likes")
           .select("*", { count: "exact", head: true })
           .eq("post_id", pid);
 
-        // 5) เราไลก์เองไหม
+        // check if I liked
         let iLike = false;
         if (user?.id) {
           const { data: mine } = await supabase
@@ -280,10 +448,11 @@ export default function PostPage() {
           iLike = Boolean(mine);
         }
 
-        // 6) คอมเมนต์
+        // comments
         const hydratedComments = await fetchCommentsWithUsers(pid);
 
-        if (!mounted) return;
+        if (!active) return;
+
         setPost({
           id: p.id,
           image: p.image,
@@ -300,27 +469,29 @@ export default function PostPage() {
         setErr("Cannot load this article.");
         toast.error("Cannot load this article");
       } finally {
-        if (mounted) setLoading(false);
+        if (active) setLoading(false);
       }
-    }
+    })();
 
-    load();
     return () => {
-      mounted = false;
+      active = false;
     };
   }, [pid, user?.id]);
 
-  /* ---- helpers/actions ---- */
+  /* ---- like helpers ---- */
+  const requireLogin = () => setOpenLoginDialog(true);
+
   const syncLikesCount = async () => {
     const { count } = await supabase
       .from("likes")
       .select("*", { count: "exact", head: true })
       .eq("post_id", pid);
-    await supabase.from("posts").update({ likes_count: count ?? 0 }).eq("id", pid);
+    await supabase
+      .from("posts")
+      .update({ likes_count: count ?? 0 })
+      .eq("id", pid);
     return count ?? 0;
   };
-
-  const requireLogin = () => setOpenLoginDialog(true);
 
   const toggleLike = async () => {
     if (!user) return requireLogin();
@@ -333,7 +504,11 @@ export default function PostPage() {
         });
         setLikedByMe(true);
       } else {
-        await supabase.from("likes").delete().eq("post_id", pid).eq("user_id", user.id);
+        await supabase
+          .from("likes")
+          .delete()
+          .eq("post_id", pid)
+          .eq("user_id", user.id);
         setLikedByMe(false);
       }
       const newCount = await syncLikesCount();
@@ -343,6 +518,7 @@ export default function PostPage() {
     }
   };
 
+  /* ---- comment actions ---- */
   const handleSubmitComment = async (e) => {
     e.preventDefault();
     if (!user) return requireLogin();
@@ -372,7 +548,9 @@ export default function PostPage() {
           .select("id, username, name, profile_pic")
           .in("id", ids);
         const map = new Map((users || []).map((u) => [u.id, u]));
-        setComments(rows.map((r) => ({ ...r, user: map.get(r.user_id) || null })));
+        setComments(
+          rows.map((r) => ({ ...r, user: map.get(r.user_id) || null }))
+        );
       } else {
         setComments([]);
       }
@@ -393,7 +571,7 @@ export default function PostPage() {
     }
   };
 
-  /* ---- render ---- */
+  /* ---- loading / error guards ---- */
   if (loading) {
     return (
       <div className="py-24 text-center">
@@ -414,10 +592,11 @@ export default function PostPage() {
   const authorName = author?.name || author?.username || "Unknown";
   const authorAvatar = author?.profile_pic || "";
 
+  /* ---- main render ---- */
   return (
     <article className="pb-20">
       <div className="mx-auto mt-[60px] max-w-[1200px] px-[24px] md:px-[60px]">
-        {/* cover */}
+        {/* cover image */}
         <figure className="overflow-hidden rounded-2xl border border-stone-200">
           <img
             src={post.image}
@@ -429,8 +608,9 @@ export default function PostPage() {
 
         {/* grid */}
         <div className="mt-6 grid grid-cols-1 gap-6 md:mt-4 md:grid-cols-[1fr_320px] md:items-start">
-          {/* left */}
+          {/* LEFT COLUMN */}
           <div ref={leftColRef}>
+            {/* category + date */}
             <div className="mb-2 flex items-center gap-3">
               <span
                 className="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold"
@@ -443,17 +623,24 @@ export default function PostPage() {
               >
                 {catName}
               </span>
-              <time className="text-xs text-stone-500">{post.dateFormatted}</time>
+              <time className="text-xs text-stone-500">
+                {post.dateFormatted}
+              </time>
             </div>
 
+            {/* title */}
             <h1 className="text-[28px] md:text-[32px] font-extrabold leading-tight tracking-tight text-stone-900">
               {post.title}
             </h1>
 
-            <p className="mt-3 text-[15px] leading-relaxed text-stone-700">{post.description}</p>
+            {/* intro */}
+            <p className="mt-3 text-[15px] leading-relaxed text-stone-700">
+              {post.description}
+            </p>
 
-            <div className="prose prose-stone mt-6 max-w-none prose-h2:text-[20px] prose-h2:font-semibold">
-              <ReactMarkdown>{post.content}</ReactMarkdown>
+            {/* BODY CONTENT */}
+            <div className="mt-6">
+              <ManualContentRenderer text={post.content} />
             </div>
 
             {/* Like + Share */}
@@ -510,6 +697,7 @@ export default function PostPage() {
             <section className="mt-12 space-y-4">
               <h2 className="text-2xl font-bold tracking-tight">Comments</h2>
 
+              {/* comment input */}
               <form
                 className="relative rounded-2xl border border-stone-300 bg-white p-4"
                 onSubmit={handleSubmitComment}
@@ -539,7 +727,9 @@ export default function PostPage() {
                   <textarea
                     value={newComment}
                     onChange={(e) => setNewComment(e.target.value)}
-                    placeholder={user ? "What are your thoughts?" : "Log in to comment"}
+                    placeholder={
+                      user ? "What are your thoughts?" : "Log in to comment"
+                    }
                     className="h-28 flex-1 resize-none rounded-xl border border-stone-300 p-4 outline-none focus:ring-2 focus:ring-stone-300 disabled:opacity-60"
                     disabled={!user || sending}
                   />
@@ -556,9 +746,13 @@ export default function PostPage() {
                 </div>
               </form>
 
+              {/* comment list */}
               <ul className="space-y-3">
                 {comments.map((c) => (
-                  <li key={c.id} className="rounded-xl border border-stone-200 bg-white p-3">
+                  <li
+                    key={c.id}
+                    className="rounded-xl border border-stone-200 bg-white p-3"
+                  >
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex items-start gap-3">
                         <AvatarCircle
@@ -570,12 +764,10 @@ export default function PostPage() {
                           focusY={30}
                         />
                         <div>
-                          <div className="flex items-center gap-2">
-                            {/* ชื่อ: ใช้ name ก่อน ถ้าไม่มีค่อย fallback username */}
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
                             <span className="font-semibold">
                               {c.user?.name || c.user?.username || "User"}
                             </span>
-                            {/* เวลา: AM/PM ตามโซนเอเชีย/กรุงเทพฯ */}
                             <span className="text-xs text-stone-500">
                               {fmtBangkokDateTime(c.created_at)}
                             </span>
@@ -598,12 +790,14 @@ export default function PostPage() {
                     </div>
                   </li>
                 ))}
-                {!comments.length && <li className="text-stone-500">No comments yet.</li>}
+                {!comments.length && (
+                  <li className="text-stone-500">No comments yet.</li>
+                )}
               </ul>
             </section>
           </div>
 
-          {/* right: sticky author */}
+          {/* RIGHT COLUMN (Author sticky card) */}
           <div className="hidden md:block md:self-start">
             <StickyCard offset={120} trackRef={leftColRef}>
               <div className="w-[305px] rounded-2xl border border-stone-200 bg-stone-50 p-5">
@@ -617,19 +811,22 @@ export default function PostPage() {
                     focusY={40}
                   />
                   <div>
-                    <p className="text-[11px] uppercase tracking-wide text-stone-500">Author</p>
-                    <p className="font-semibold text-stone-900">{authorName}</p>
+                    <p className="text-[11px] uppercase tracking-wide text-stone-500">
+                      Author
+                    </p>
+                    <p className="font-semibold text-stone-900">
+                      {authorName}
+                    </p>
                   </div>
                 </div>
-                {/* ข้อความ bio — ตามที่คุณขอให้คงไว้ */}
                 <p className="text-[13px] leading-relaxed text-stone-700">
-                  I am a pet enthusiast and freelance writer who specializes in animal behavior and
-                  care. With a deep love for cats, I enjoy sharing insights on feline companionship
-                  and wellness.
+                  I am a pet enthusiast and freelance writer who specializes in
+                  animal behavior and care. With a deep love for cats, I enjoy
+                  sharing insights on feline companionship and wellness.
                 </p>
                 <p className="mt-3 text-[13px] leading-relaxed text-stone-700">
-                  When I’m not writing, I spend time volunteering at my local animal shelter,
-                  helping cats find loving homes.
+                  When I’m not writing, I spend time volunteering at my local
+                  animal shelter, helping cats find loving homes.
                 </p>
               </div>
             </StickyCard>
@@ -637,10 +834,15 @@ export default function PostPage() {
         </div>
       </div>
 
-      {/* login modal */}
-      <SimpleModal open={openLoginDialog} onClose={() => setOpenLoginDialog(false)}>
+      {/* Login modal */}
+      <SimpleModal
+        open={openLoginDialog}
+        onClose={() => setOpenLoginDialog(false)}
+      >
         <h2 className="text-3xl font-extrabold leading-tight">
-          Create an account to<br />continue
+          Create an account to
+          <br />
+          continue
         </h2>
         <div className="mt-8">
           <button

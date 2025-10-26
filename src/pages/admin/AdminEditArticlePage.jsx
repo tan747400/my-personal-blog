@@ -36,11 +36,11 @@ export default function AdminEditArticlePage() {
   // ----- Form state -----
   const [form, setForm] = useState({
     image: "",
-    category_id: null, // number | null
+    category_id: null,
     title: "",
     description: "",
     content: "",
-    status_id: null, // number | null
+    status_id: null,
   });
 
   // ----- Upload states -----
@@ -95,7 +95,8 @@ export default function AdminEditArticlePage() {
           title: post?.title ?? "",
           description: post?.description ?? "",
           content: post?.content ?? "",
-          status_id: post?.status_id == null ? null : Number(post.status_id),
+          status_id:
+            post?.status_id == null ? null : Number(post.status_id),
         });
       } catch (e) {
         console.error(e);
@@ -164,8 +165,7 @@ export default function AdminEditArticlePage() {
         .toString(36)
         .slice(2)}.${ext}`;
 
-      const { error: upErr } = await supabase
-        .storage
+      const { error: upErr } = await supabase.storage
         .from(BUCKET)
         .upload(path, localFile, { upsert: false });
       if (upErr) throw upErr;
@@ -214,7 +214,7 @@ export default function AdminEditArticlePage() {
         image: imageUrl,
         category_id: form.category_id,
         title: form.title,
-        description: form.description,
+        description: form.description, // intro ที่หน้าอ่านจะโชว์ใต้หัวข้อ
         content: form.content,
         status_id: form.status_id,
       };
@@ -366,7 +366,6 @@ export default function AdminEditArticlePage() {
                     alt="thumbnail"
                     className="absolute inset-0 h-full w-full object-cover"
                     onError={(e) => {
-                      // ซ่อนรูปถ้า URL ใช้ไม่ได้
                       e.currentTarget.style.display = "none";
                     }}
                   />
@@ -431,7 +430,9 @@ export default function AdminEditArticlePage() {
 
           {/* Category */}
           <div>
-            <label>Category</label>
+            <label className="block text-gray-700 font-medium">
+              Category
+            </label>
             <Select
               key={`cat-${form.category_id}-${categories.length}`}
               defaultValue={
@@ -463,7 +464,9 @@ export default function AdminEditArticlePage() {
 
           {/* Status */}
           <div>
-            <label>Status</label>
+            <label className="block text-gray-700 font-medium">
+              Status
+            </label>
             <Select
               key={`st-${form.status_id}-${statuses.length}`}
               defaultValue={
@@ -495,7 +498,9 @@ export default function AdminEditArticlePage() {
 
           {/* Title */}
           <div>
-            <label>Title</label>
+            <label className="block text-gray-700 font-medium">
+              Title
+            </label>
             <Input
               placeholder="Article title"
               value={form.title}
@@ -506,23 +511,30 @@ export default function AdminEditArticlePage() {
             />
           </div>
 
-          {/* Introduction */}
+          {/* Introduction (max 240 letters) */}
           <div>
-            <label>Introduction</label>
+            <label className="block text-gray-700 font-medium">
+              Introduction (max 240 letters)
+            </label>
             <Textarea
-              rows={3}
-              maxLength={120}
+              rows={5}
+              maxLength={240} // 👈 เปลี่ยนเป็น 240
               value={form.description}
               onChange={(e) =>
                 setForm((s) => ({ ...s, description: e.target.value }))
               }
               className="mt-1 py-3 rounded-sm"
             />
+            <div className="text-[12px] text-stone-500 mt-1">
+              This shows under the article title.
+            </div>
           </div>
 
           {/* Content */}
           <div>
-            <label>Content</label>
+            <label className="block text-gray-700 font-medium">
+              Content
+            </label>
             <Textarea
               rows={20}
               value={form.content}
