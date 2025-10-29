@@ -191,7 +191,7 @@ export default function App() {
           }
         />
 
-        {/* 🔁 Redirect /admin → /admin/login */}
+        {/* Redirect /admin → /admin/login */}
         <Route path="/admin" element={<Navigate to="/admin/login" replace />} />
       </Routes>
 
