@@ -106,7 +106,7 @@ export default function ResetPasswordPage() {
           <div className="flex justify-start gap-12 items-center mb-4">
             <button
               onClick={() => navigate("/profile")}
-              className="flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground"
+              className="flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground cursor-pointer"
             >
               <User className="h-5 w-5 mb-1" />
               Profile
@@ -135,7 +135,7 @@ export default function ResetPasswordPage() {
               <div className="space-y-3">
                 <button
                   onClick={() => navigate("/profile")}
-                  className="flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground"
+                  className="flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground cursor-pointer"
                 >
                   <User className="h-5 w-5 mb-1" />
                   Profile
@@ -212,7 +212,7 @@ export default function ResetPasswordPage() {
 
               <button
                 type="submit"
-                className="px-8 py-2 bg-foreground text-white rounded-full hover:bg-muted-foreground transition-colors"
+                className="px-8 py-2 bg-foreground text-white rounded-full hover:bg-muted-foreground transition-colors cursor-pointer"
               >
                 Reset password
               </button>
