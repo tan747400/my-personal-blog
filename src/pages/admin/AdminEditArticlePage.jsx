@@ -214,8 +214,8 @@ export default function AdminEditArticlePage() {
         image: imageUrl,
         category_id: form.category_id,
         title: form.title,
-        description: form.description, // intro ที่หน้าอ่านจะโชว์ใต้หัวข้อ
-        content: form.content,
+        description: form.description, // โชว์ใต้หัวข้อ
+        content: form.content, // ใช้ **ตัวหนา** ได้ (ไปเรนเดอร์บนหน้าอ่าน)
         status_id: form.status_id,
       };
 
@@ -430,9 +430,7 @@ export default function AdminEditArticlePage() {
 
           {/* Category */}
           <div>
-            <label className="block text-gray-700 font-medium">
-              Category
-            </label>
+            <label className="block text-gray-700 font-medium">Category</label>
             <Select
               key={`cat-${form.category_id}-${categories.length}`}
               defaultValue={
@@ -464,9 +462,7 @@ export default function AdminEditArticlePage() {
 
           {/* Status */}
           <div>
-            <label className="block text-gray-700 font-medium">
-              Status
-            </label>
+            <label className="block text-gray-700 font-medium">Status</label>
             <Select
               key={`st-${form.status_id}-${statuses.length}`}
               defaultValue={
@@ -498,9 +494,7 @@ export default function AdminEditArticlePage() {
 
           {/* Title */}
           <div>
-            <label className="block text-gray-700 font-medium">
-              Title
-            </label>
+            <label className="block text-gray-700 font-medium">Title</label>
             <Input
               placeholder="Article title"
               value={form.title}
@@ -518,7 +512,7 @@ export default function AdminEditArticlePage() {
             </label>
             <Textarea
               rows={5}
-              maxLength={240} // 👈 เปลี่ยนเป็น 240
+              maxLength={240}
               value={form.description}
               onChange={(e) =>
                 setForm((s) => ({ ...s, description: e.target.value }))
@@ -542,7 +536,12 @@ export default function AdminEditArticlePage() {
                 setForm((s) => ({ ...s, content: e.target.value }))
               }
               className="mt-1 py-3 rounded-sm"
+              placeholder="Use #, ##, ### for headings; - for bullet points; **bold** for bold text."
             />
+            <div className="text-[12px] text-stone-500 mt-1">
+              Tip: พิมพ์ <code>**คำที่ต้องการตัวหนา**</code> เพื่อทำตัวหนา
+              (เรนเดอร์บนหน้าอ่าน)
+            </div>
           </div>
         </form>
 

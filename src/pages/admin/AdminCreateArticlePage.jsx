@@ -41,7 +41,7 @@ export default function AdminCreateArticlePage() {
   const fileInputRef = useRef(null);
   const [localFile, setLocalFile] = useState(null);
   const [localPreview, setLocalPreview] = useState("");
-  const [uploading, setUploading] = useState(false); // <-- แก้ตรงนี้
+  const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
 
   // load lists + current author
@@ -181,8 +181,8 @@ export default function AdminCreateArticlePage() {
         image: imageUrl,
         category_id: Number(form.category_id),
         title: form.title,
-        description: form.description, // intro/subtitle (โชว์ใต้หัวข้อโพสต์)
-        content: form.content,
+        description: form.description, // โชว์ใต้หัวข้อโพสต์
+        content: form.content, // ใช้ **ตัวหนา** ได้ (ไปเรนเดอร์บนหน้าอ่าน)
         status_id: Number(statusIdToUse),
         date: new Date().toISOString(),
         likes_count: 0,
@@ -360,9 +360,7 @@ export default function AdminCreateArticlePage() {
 
           {/* Category */}
           <div>
-            <label className="block text-gray-700 font-medium">
-              Category
-            </label>
+            <label className="block text-gray-700 font-medium">Category</label>
             <Select
               value={String(form.category_id || "")}
               onValueChange={(val) =>
@@ -402,9 +400,7 @@ export default function AdminCreateArticlePage() {
 
           {/* Title */}
           <div>
-            <label className="block text-gray-700 font-medium">
-              Title
-            </label>
+            <label className="block text-gray-700 font-medium">Title</label>
             <Input
               placeholder="Article title"
               value={form.title}
@@ -437,12 +433,16 @@ export default function AdminCreateArticlePage() {
               Content
             </label>
             <Textarea
-              placeholder="Full article content. Use #, ##, ### for headings; - for bullet points."
+              placeholder="Full article content. Use #, ##, ### for headings; - for bullet points; **bold** for bold text."
               rows={20}
               value={form.content}
               onChange={onChange("content")}
               className="mt-1 py-3 rounded-sm"
             />
+            <div className="text-[12px] text-stone-500 mt-1">
+              Tip: พิมพ์ <code>**คำที่ต้องการตัวหนา**</code> เพื่อทำตัวหนา
+              (เรนเดอร์บนหน้าอ่าน)
+            </div>
           </div>
         </form>
       </main>
