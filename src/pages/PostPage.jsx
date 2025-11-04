@@ -1,14 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import {
-  Copy,
-  Facebook,
-  Linkedin,
-  Twitter,
-  Smile,
-  Trash2,
-  X,
-} from "lucide-react";
+import { Copy, Facebook, Linkedin, Twitter, Smile, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { createPortal } from "react-dom";
 
@@ -33,9 +25,7 @@ function StickyCard({ offset = 120, trackRef, children }) {
       if (!wrap || !card) return;
 
       const leftEl = trackRef?.current || null;
-      const leftH = leftEl
-        ? leftEl.scrollHeight || leftEl.offsetHeight || 0
-        : 0;
+      const leftH = leftEl ? leftEl.scrollHeight || leftEl.offsetHeight || 0 : 0;
       const cardH = card.offsetHeight;
       const minH = Math.max(leftH, cardH);
       if (wrap.style.minHeight !== `${minH}px`) {
@@ -172,7 +162,30 @@ function normalizeAdminContent(raw = "") {
   return out;
 }
 
-/* ManualContentRenderer */
+/* NEW: inline renderer รองรับ **bold** และ __bold__ */
+function renderInline(str = "") {
+  const regex = /(\*\*|__)(.+?)\1/g; // match **text** หรือ __text__
+  const out = [];
+  let lastIndex = 0;
+  let m;
+  let key = 0;
+
+  while ((m = regex.exec(str)) !== null) {
+    if (m.index > lastIndex) {
+      out.push(<span key={`t-${key++}`}>{str.slice(lastIndex, m.index)}</span>);
+    }
+    out.push(<strong key={`b-${key++}`}>{m[2]}</strong>);
+    lastIndex = regex.lastIndex;
+  }
+
+  if (lastIndex < str.length) {
+    out.push(<span key={`t-${key++}`}>{str.slice(lastIndex)}</span>);
+  }
+
+  return out.length ? out : str;
+}
+
+/* ManualContentRenderer (เวอร์ชันใหม่) */
 function ManualContentRenderer({ text }) {
   if (!text) return null;
   const prepared = normalizeAdminContent(text);
@@ -200,7 +213,7 @@ function ManualContentRenderer({ text }) {
                   key={idx}
                   className="mt-6 mb-2 text-[24px] font-extrabold font-sans text-[#26231E] leading-snug tracking-tight"
                 >
-                  {content}
+                  {renderInline(content)}
                 </h1>
               );
             }
@@ -210,7 +223,7 @@ function ManualContentRenderer({ text }) {
                   key={idx}
                   className="mt-6 mb-2 text-[20px] font-bold font-sans text-[#26231E] leading-snug tracking-tight"
                 >
-                  {content}
+                  {renderInline(content)}
                 </h2>
               );
             }
@@ -220,21 +233,21 @@ function ManualContentRenderer({ text }) {
                   key={idx}
                   className="mt-6 mb-2 text-[18px] font-semibold font-sans text-[#26231E] leading-snug tracking-tight"
                 >
-                  {content}
+                  {renderInline(content)}
                 </h3>
               );
             }
           }
         }
 
-        const bulletMatch = lineHeadTrimmed.match(/^[-*]\s*(.+)$/);
+        const bulletMatch = lineHeadTrimmed.match(/^-\s*(.+)$/);
         if (bulletMatch) {
           const bulletText = bulletMatch[1] || "";
           return (
             <div key={idx} className="mb-2 flex items-start gap-2">
               <div className="mt-[7px] h-[5px] w-[5px] flex-none rounded-full bg-[#26231E]" />
               <p className="whitespace-pre-wrap text-[16px] leading-relaxed font-sans text-[#26231E]">
-                {bulletText}
+                {renderInline(bulletText)}
               </p>
             </div>
           );
@@ -245,7 +258,7 @@ function ManualContentRenderer({ text }) {
             key={idx}
             className="mb-3 whitespace-pre-wrap text-[16px] font-sans leading-relaxed text-[#26231E]"
           >
-            {origLine}
+            {renderInline(origLine)}
           </p>
         );
       })}
@@ -254,19 +267,11 @@ function ManualContentRenderer({ text }) {
 }
 
 /* ================= AuthorCard ================= */
-/*
-  - ใช้ทั้ง mobile และ desktop
-  - layout ตาม Figma: กล่อง bg off-white, border, radius ใหญ่
-  - บรรทัดบน: avatar + (Author label + name)
-  - เส้นคั่น
-  - bio paragraph(s)
-*/
 function AuthorCard({ avatar, name, bio }) {
   if (!name && !bio) return null;
 
   return (
     <section className="rounded-xl bg-[#EFEEEB] p-4 md:p-5 text-[#75716B] shadow-[0_1px_2px_rgb(0_0_0/0.03)]">
-      {/* Row: avatar + texts */}
       <div className="flex items-start gap-3">
         <AvatarCircle
           src={avatar}
@@ -276,7 +281,6 @@ function AuthorCard({ avatar, name, bio }) {
           focusX={50}
           focusY={40}
         />
-
         <div className="flex-1">
           <p className="text-[12px] leading-[1.2] font-sans text-[#75716B]">Author</p>
           <p className="text-[20px] font-sans font-semibold leading-7 text-[#43403B]">
@@ -285,10 +289,8 @@ function AuthorCard({ avatar, name, bio }) {
         </div>
       </div>
 
-      {/* divider line */}
       <div className="my-4 h-px w-full bg-stone-300" />
 
-      {/* bio text */}
       {bio && (
         <p className="whitespace-pre-line text-[16px] font-sans font-medium text-base leading-relaxed text-[#75716B]">
           {bio}
@@ -303,10 +305,7 @@ function SimpleModal({ open, onClose, children }) {
   if (!open) return null;
   return createPortal(
     <div className="fixed inset-0 z-[100]">
-      <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
-        onClick={onClose}
-      />
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={onClose} />
       <div className="absolute left-1/2 top-1/2 w-[92vw] max-w-md -translate-x-1/2 -translate-y-1/2">
         <div className="relative rounded-2xl bg-white p-8 text-center shadow-2xl">
           <button
@@ -369,9 +368,7 @@ export default function PostPage() {
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(currentUrl);
-      toast.success("Copied!", {
-        description: "Link copied to clipboard.",
-      });
+      toast.success("Copied!", { description: "Link copied to clipboard." });
     } catch {
       toast.error("Failed to copy link");
     }
@@ -467,9 +464,7 @@ export default function PostPage() {
             .eq("id", p.user_id)
             .maybeSingle();
 
-          if (auErr) {
-            console.warn("fetch author error:", auErr.message);
-          }
+          if (auErr) console.warn("fetch author error:", auErr.message);
 
           if (au) {
             foundAuthor = {
@@ -482,11 +477,9 @@ export default function PostPage() {
           }
         }
 
-        if (active) {
-          setAuthor(foundAuthor);
-        }
+        if (active) setAuthor(foundAuthor);
 
-        // 4) like count
+        // 4) like count (นับจากตาราง likes)
         const { count: likeCount } = await supabase
           .from("likes")
           .select("*", { count: "exact", head: true })
@@ -538,43 +531,48 @@ export default function PostPage() {
   // ===== like helpers =====
   const requireLogin = () => setOpenLoginDialog(true);
 
-  const syncLikesCount = async () => {
-    const { count } = await supabase
+  const refreshLikes = async () => {
+    const { count, error } = await supabase
       .from("likes")
       .select("*", { count: "exact", head: true })
       .eq("post_id", pid);
-
-    await supabase
-      .from("posts")
-      .update({ likes_count: count ?? 0 })
-      .eq("id", pid);
-
-    return count ?? 0;
+    if (!error) setLikes(count ?? 0);
   };
 
   const toggleLike = async () => {
     if (!user) return requireLogin();
+
+    const wasLiked = likedByMe;
+    const prevLikes = likes;
+
+    // optimistic UI
+    setLikedByMe(!wasLiked);
+    setLikes(wasLiked ? Math.max(0, prevLikes - 1) : prevLikes + 1);
+
     try {
-      if (!likedByMe) {
-        await supabase.from("likes").insert({
-          post_id: pid,
-          user_id: user.id,
-          liked_at: new Date().toISOString(),
-        });
-        setLikedByMe(true);
+      if (!wasLiked) {
+        const { error } = await supabase
+          .from("likes")
+          .insert({ post_id: pid, user_id: user.id })
+          .select("id")
+          .single();
+
+        if (error && error.code !== "23505") throw error;
       } else {
-        await supabase
+        const { error } = await supabase
           .from("likes")
           .delete()
           .eq("post_id", pid)
           .eq("user_id", user.id);
-        setLikedByMe(false);
+        if (error) throw error;
       }
 
-      const newCount = await syncLikesCount();
-      setLikes(newCount);
-    } catch {
-      toast.error("Failed to update like");
+      await refreshLikes();
+    } catch (e) {
+      console.error(e);
+      setLikedByMe(wasLiked);
+      setLikes(prevLikes);
+      toast.error(`Failed to update like${e?.message ? `: ${e.message}` : ""}`);
     }
   };
 
@@ -636,7 +634,6 @@ export default function PostPage() {
 
   // ----- final render data -----
   const catName = category?.name || "Uncategorized";
-
   const authorName = author.name || author.username || "Unknown";
   const authorAvatar = author.profile_pic || "";
   const authorBio = (author.bio || "").trim();
@@ -662,10 +659,7 @@ export default function PostPage() {
             <div className="mb-2 flex items-center gap-3">
               <span
                 className="inline-flex rounded-full px-[12px] py-[4px] text-[14px] font-sans font-semibold"
-                style={{
-                  backgroundColor: "#D7F2E9",
-                  color: "#12B279",
-                }}
+                style={{ backgroundColor: "#D7F2E9", color: "#12B279" }}
                 title={catName}
               >
                 {catName}
@@ -692,11 +686,7 @@ export default function PostPage() {
 
             {/* MOBILE AUTHOR CARD (visible < md) */}
             <div className="mt-8 md:hidden">
-              <AuthorCard
-                avatar={authorAvatar}
-                name={authorName}
-                bio={authorBio}
-              />
+              <AuthorCard avatar={authorAvatar} name={authorName} bio={authorBio} />
             </div>
 
             {/* like + share */}
@@ -786,9 +776,7 @@ export default function PostPage() {
                   <textarea
                     value={newComment}
                     onChange={(e) => setNewComment(e.target.value)}
-                    placeholder={
-                      user ? "What are your thoughts?" : "Log in to comment"
-                    }
+                    placeholder={user ? "What are your thoughts?" : "Log in to comment"}
                     className="h-28 flex-1 resize-none rounded-xl border border-stone-300 p-4 outline-none focus:ring-2 focus:ring-stone-300 disabled:opacity-60"
                     disabled={!user || sending}
                   />
@@ -808,10 +796,7 @@ export default function PostPage() {
               {/* comment list */}
               <ul className="space-y-3">
                 {comments.map((c) => (
-                  <li
-                    key={c.id}
-                    className="rounded-xl border border-stone-200 bg-white p-3"
-                  >
+                  <li key={c.id} className="rounded-xl border border-stone-200 bg-white p-3">
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex items-start gap-3">
                         <AvatarCircle
@@ -849,10 +834,7 @@ export default function PostPage() {
                     </div>
                   </li>
                 ))}
-
-                {!comments.length && (
-                  <li className="text-stone-500">No comments yet.</li>
-                )}
+                {!comments.length && <li className="text-stone-500">No comments yet.</li>}
               </ul>
             </section>
           </div>
@@ -861,11 +843,7 @@ export default function PostPage() {
           <div className="hidden md:block md:self-start">
             <StickyCard offset={120} trackRef={leftColRef}>
               <div className="w-[305px]">
-                <AuthorCard
-                  avatar={authorAvatar}
-                  name={authorName}
-                  bio={authorBio}
-                />
+                <AuthorCard avatar={authorAvatar} name={authorName} bio={authorBio} />
               </div>
             </StickyCard>
           </div>
@@ -873,10 +851,7 @@ export default function PostPage() {
       </div>
 
       {/* Modal login/signup */}
-      <SimpleModal
-        open={openLoginDialog}
-        onClose={() => setOpenLoginDialog(false)}
-      >
+      <SimpleModal open={openLoginDialog} onClose={() => setOpenLoginDialog(false)}>
         <h2 className="text-3xl font-extrabold leading-tight">
           Create an account to
           <br />
