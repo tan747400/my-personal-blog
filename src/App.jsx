@@ -6,7 +6,6 @@ import { Toaster } from "sonner";
 import { NavBar, Footer } from "./components/SiteSections";
 
 // Auth
-import ProtectedRoute from "./components/auth/ProtectedRoute.jsx";
 import AuthenticationRoute from "./components/auth/AuthenticationRoute.jsx";
 import { useAuth } from "./contexts/authentication.jsx";
 

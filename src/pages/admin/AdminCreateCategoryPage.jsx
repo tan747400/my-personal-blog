@@ -54,7 +54,7 @@ export default function AdminCreateCategoryPage() {
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-semibold">Create Category</h2>
           <Button
-            className="px-8 py-2 rounded-full"
+            className="cursor-pointer px-8 py-2 rounded-full"
             onClick={save}
             disabled={saving}
           >
