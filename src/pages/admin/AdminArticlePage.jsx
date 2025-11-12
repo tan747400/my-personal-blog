@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { PenSquare, Trash2 } from "lucide-react";
+import { PenSquare, Trash2, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import supabase from "@/lib/db";
 
@@ -20,6 +20,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog";
 import { AdminSidebar } from "@/components/AdminWebSection";
 import { toast } from "sonner";
 
@@ -35,6 +42,11 @@ export default function AdminArticleManagementPage() {
   const [q, setQ] = useState("");
   const [catFilter, setCatFilter] = useState("0");
   const [statusFilter, setStatusFilter] = useState("0");
+
+  // popup ลบ
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [targetDeleteId, setTargetDeleteId] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   // ---- helpers: map
   const catMap = useMemo(() => {
@@ -112,27 +124,43 @@ export default function AdminArticleManagementPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q, catFilter, statusFilter, catMap, statusMap]);
 
-  // ---- delete
-  const handleDelete = async (id) => {
-    if (!confirm("Delete this article?")) return;
+  // ---- ask delete (เปิด popup)
+  const askDelete = (id) => {
+    setTargetDeleteId(id);
+    setIsDialogOpen(true);
+  };
+
+  // ---- confirm delete (ลบจริง)
+  const confirmDelete = async () => {
+    if (!targetDeleteId) return;
+    setDeleting(true);
 
     // optimistic remove
-    const old = rows;
-    setRows((prev) => prev.filter((r) => r.id !== id));
+    const prev = rows;
+    setRows((cur) => cur.filter((r) => r.id !== targetDeleteId));
 
-    const { error } = await supabase.from("posts").delete().eq("id", id);
+    try {
+      const { error } = await supabase
+        .from("posts")
+        .delete()
+        .eq("id", targetDeleteId);
 
-    if (error) {
-      console.error("Delete failed:", error);
-      toast.error(error.message || "Delete failed");
-      // rollback visual
-      setRows(old);
-      return;
+      if (error) {
+        setRows(prev); // rollback
+        throw error;
+      }
+
+      toast.success("Article deleted");
+    } catch (e) {
+      console.error("Delete failed:", e);
+      toast.error(e?.message || "Delete failed");
+    } finally {
+      setDeleting(false);
+      setIsDialogOpen(false);
+      setTargetDeleteId(null);
+      // ดึงใหม่เพื่อความชัวร์ (ในกรณี filter / count อื่นๆ)
+      fetchRows();
     }
-
-    toast.success("Deleted");
-    // hard refresh to be 100% sure
-    fetchRows();
   };
 
   // ---- badge
@@ -163,9 +191,11 @@ export default function AdminArticleManagementPage() {
   };
 
   return (
-    <div className="flex h-screen bg-gray-100">
+    <div className="flex min-h-screen bg-gray-100">
       <AdminSidebar />
-      <main className="flex-1 p-8 overflow-auto">
+
+      {/* ทำให้คอลัมน์เนื้อหาสามารถสกรอล์ได้แน่ๆ */}
+      <main className="flex-1 h-screen overflow-y-auto p-8 bg-gray-50">
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-semibold">Article management</h2>
@@ -179,99 +209,142 @@ export default function AdminArticleManagementPage() {
         </div>
 
         {/* Filters */}
-        <div className="flex gap-4 mb-6">
+        <div className="flex flex-wrap items-center gap-4 mb-6">
           <Input
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Search title/description/content…"
-            className="w-full py-3 rounded-sm"
+            className="w-full md:flex-1 py-3 rounded-sm"
           />
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[180px] py-3 rounded-sm cursor-pointer">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="0">All</SelectItem>
-              {statuses.map((s) => (
-                <SelectItem key={s.id} value={String(s.id)}>
-                  {String(s.status).charAt(0).toUpperCase() +
-                    String(s.status).slice(1)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
 
-          <Select value={catFilter} onValueChange={setCatFilter}>
-            <SelectTrigger className="w-[180px] py-3 rounded-sm cursor-pointer">
-              <SelectValue placeholder="Category" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="0">All</SelectItem>
-              {categories.map((c) => (
-                <SelectItem key={c.id} value={String(c.id)}>
-                  {c.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-2">
+            <span className="py-2 font-medium text-stone-700">Category</span>
+            <Select value={catFilter} onValueChange={setCatFilter}>
+              <SelectTrigger className="w-[180px] py-3 rounded-sm cursor-pointer">
+                <SelectValue placeholder="Category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="0">All</SelectItem>
+                {categories.map((c) => (
+                  <SelectItem key={c.id} value={String(c.id)}>
+                    {c.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="py-2 font-medium text-stone-700">Status</span>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[180px] py-3 rounded-sm cursor-pointer">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="0">All</SelectItem>
+                {statuses.map((s) => (
+                  <SelectItem key={s.id} value={String(s.id)}>
+                    {String(s.status).charAt(0).toUpperCase() +
+                      String(s.status).slice(1)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         {/* Table */}
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[50%]">Article title</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right"></TableHead>
-            </TableRow>
-          </TableHeader>
-
-          <TableBody>
-            {loading && (
+        <div className="pb-8">
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={4}>Loading…</TableCell>
+                <TableHead className="w-[50%]">Article title</TableHead>
+                <TableHead>Category</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right"></TableHead>
               </TableRow>
-            )}
+            </TableHeader>
 
-            {!loading &&
-              rows.map((r) => (
-                <TableRow key={r.id}>
-                  <TableCell className="font-medium">{r.title}</TableCell>
-                  <TableCell>{r.category}</TableCell>
-                  <TableCell>{renderStatusBadge(r.statusRaw)}</TableCell>
-                  <TableCell className="text-right space-x-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="cursor-pointer"
-                      onClick={() =>
-                        navigate(`/admin/article-management/edit/${r.id}`)
-                      }
-                    >
-                      <PenSquare className="h-4 w-4 cursor-pointer hover:text-blue-600" />
-                    </Button>
-
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="cursor-pointer"
-                      onClick={() => handleDelete(r.id)}
-                    >
-                      <Trash2 className="h-4 w-4 cursor-pointer hover:text-red-600" />
-                    </Button>
-                  </TableCell>
+            <TableBody>
+              {loading && (
+                <TableRow>
+                  <TableCell colSpan={4}>Loading…</TableCell>
                 </TableRow>
-              ))}
+              )}
 
-            {!loading && rows.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={4}>No data</TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
+              {!loading &&
+                rows.map((r) => (
+                  <TableRow key={r.id}>
+                    <TableCell className="font-medium">{r.title}</TableCell>
+                    <TableCell>{r.category}</TableCell>
+                    <TableCell>{renderStatusBadge(r.statusRaw)}</TableCell>
+                    <TableCell className="text-right space-x-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="cursor-pointer"
+                        onClick={() =>
+                          navigate(`/admin/article-management/edit/${r.id}`)
+                        }
+                      >
+                        <PenSquare className="h-4 w-4 cursor-pointer hover:text-blue-600" />
+                      </Button>
+
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="cursor-pointer"
+                        onClick={() => askDelete(r.id)}
+                      >
+                        <Trash2 className="h-4 w-4 cursor-pointer hover:text-red-600" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+
+              {!loading && rows.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={4}>No data</TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </main>
+
+      {/* Confirm delete modal (reuse style from Reset password) */}
+      <AlertDialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <AlertDialogContent className="bg-white rounded-md pt-16 pb-6 max-w-[22rem] sm:max-w-md flex flex-col items-center">
+          <AlertDialogTitle className="text-3xl font-semibold pb-2 text-center">
+            Delete article
+          </AlertDialogTitle>
+
+          <AlertDialogDescription className="mb-4 text-center font-medium text-muted-foreground">
+            Are you sure you want to delete this article?
+          </AlertDialogDescription>
+
+          <div className="flex flex-row gap-4">
+            <button
+              onClick={() => setIsDialogOpen(false)}
+              className="cursor-pointer bg-background px-10 py-4 rounded-full text-foreground border border-foreground hover:border-muted-foreground hover:text-muted-foreground transition-colors"
+            >
+              Cancel
+            </button>
+
+            <button
+              onClick={confirmDelete}
+              disabled={deleting}
+              className="cursor-pointer rounded-full text-white bg-foreground hover:bg-muted-foreground transition-colors py-4 text-lg px-10 disabled:opacity-60"
+            >
+              {deleting ? "Deleting..." : "Delete"}
+            </button>
+          </div>
+
+          <AlertDialogCancel className="cursor-pointer absolute right-4 top-2 sm:top-4 p-1 border-none">
+            <X className="h-6 w-6" />
+          </AlertDialogCancel>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
