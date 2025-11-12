@@ -105,7 +105,7 @@ export default function LoginPage() {
           <div className="flex justify-center">
             <button
               type="submit"
-              className="px-8 py-2 bg-foreground text-white rounded-full hover:bg-muted-foreground transition-colors flex items-center gap-1 disabled:opacity-60"
+              className="cursor-pointer px-8 py-2 bg-foreground text-white rounded-full hover:bg-muted-foreground transition-colors flex items-center gap-1 disabled:opacity-60"
               disabled={state.loading}
             >
               {state.loading && <Loader2 className="animate-spin" size={20} />}

@@ -3,9 +3,17 @@ import { useNavigate, useParams } from "react-router-dom";
 import supabase from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Trash2 } from "lucide-react";
+import { Trash2, X } from "lucide-react";
 import { AdminSidebar } from "@/components/AdminWebSection";
 import { toast } from "sonner";
+
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function AdminEditCategoryPage() {
   const params = useParams();
@@ -17,6 +25,10 @@ export default function AdminEditCategoryPage() {
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
+
+  // dialog (ตามสไตล์ที่ต้องการ)
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -74,14 +86,18 @@ export default function AdminEditCategoryPage() {
     navigate("/admin/category-management");
   };
 
-  const remove = async () => {
+  const confirmDelete = async () => {
     if (!Number.isFinite(cid)) return toast.error("Invalid category id");
-    if (!confirm("Delete this category?")) return;
-
+    setDeleting(true);
     const { error } = await supabase.from("categories").delete().eq("id", cid);
-    if (error) return toast.error(error.message);
-
+    if (error) {
+      toast.error(error.message);
+      setDeleting(false);
+      return;
+    }
     toast.success("Deleted");
+    setDeleting(false);
+    setIsDialogOpen(false);
     navigate("/admin/category-management");
   };
 
@@ -101,7 +117,7 @@ export default function AdminEditCategoryPage() {
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-semibold">Edit Category</h2>
           <Button
-            className="px-8 py-2 rounded-full cursor-pointer"
+            className="cursor-pointer px-8 py-2 rounded-full"
             onClick={save}
             disabled={loading}
           >
@@ -129,7 +145,7 @@ export default function AdminEditCategoryPage() {
         )}
 
         <button
-          onClick={remove}
+          onClick={() => setIsDialogOpen(true)}
           className="underline underline-offset-2 hover:text-muted-foreground text-sm font-medium flex items-center gap-1 mt-6 cursor-pointer"
           disabled={loading}
         >
@@ -137,6 +153,39 @@ export default function AdminEditCategoryPage() {
           Delete Category
         </button>
       </main>
+
+      {/* Confirm delete modal — UI เดียวกับตัวอย่าง */}
+      <AlertDialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <AlertDialogContent className="bg-white rounded-md pt-16 pb-6 max-w-[22rem] sm:max-w-md flex flex-col items-center">
+          <AlertDialogTitle className="pb-2 text-center text-3xl font-semibold">
+            Delete category
+          </AlertDialogTitle>
+          <AlertDialogDescription className="mb-2 flex flex-row justify-center text-center font-medium text-muted-foreground">
+            Are you sure you want to delete this category?
+          </AlertDialogDescription>
+
+          <div className="flex flex-row gap-4">
+            <button
+              onClick={() => setIsDialogOpen(false)}
+              className="cursor-pointer rounded-full border border-foreground bg-background px-10 py-4 text-foreground transition-colors hover:border-muted-foreground hover:text-muted-foreground"
+              disabled={deleting}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={confirmDelete}
+              disabled={deleting}
+              className="cursor-pointer rounded-full bg-foreground px-10 py-4 text-lg text-white transition-colors hover:bg-muted-foreground disabled:opacity-60"
+            >
+              {deleting ? "Deleting..." : "Delete"}
+            </button>
+          </div>
+
+          <AlertDialogCancel className="absolute right-4 top-2 p-1 border-none cursor-pointer sm:top-4">
+            <X className="h-6 w-6" />
+          </AlertDialogCancel>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
